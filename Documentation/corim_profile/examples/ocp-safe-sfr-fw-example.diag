@@ -55,33 +55,22 @@
                       / comid.mval / 1 : { / measurement-values-map /
                         / ocp-safe-sfr / 1029 : {
                           / 0: review-framework-version / 0: "1.1",
-                          / 1: methodology /              1: 0,  / 0: whitebox, 1: blackbox /
+                          / 1: report-version /           1: "1.2",
                           / 2: completion-date /          2: 1(1687651200),
                           / 3: scope-number /             3: 1,
-                          / 4: device-category /          4: 0,  / 0: storage, 1: network, 2: gpu, 3: cpu, 4: apu, 5: bmc /
-                          / 5: repo-tag /                 5: "release_v1_2_3",
-                          / 6: fw-version /               6: {
+                          / 4: fw-version /               4: [{
                             / version / 0: "1.2.3",
                             / version-scheme / 1: "semver"
-                          },
-                          / 7: fw-file-digests /          7:  [ [
-                                / hash-alg-id / -43, / sha384 /
-                                / hash-value / h'cd484defa77e8c3e4a8dd73926e32365ea0dbd01e4eff017f211d4629cfcd8e4890dd66ab1bded9be865cd1c849800d4'
-                                ],
-                                [
-                                  / hash-alg-id / -44, / sha512 /
-                                  / hash-value / h'84635baabc039a8c74aed163a8deceab8777fed32dc925a4a8dacfd478729a7b6ab1cb91d7d35b49e2bd007a80ae16f292be3ea2b9d9a88cb3cc8dff6a216988'
-                                ]      
-                              ],
-                          / 10: report-version /           10: "1.2",
-                          / 11: cvss-version /            11: "3.1",
-                          / 12: issues /                  12: [
+                          }],
+                          / 5: device-category /          5: 0,  / 0: storage, 1: network, 2: gpu, 3: cpu, 4: apu, 5: bmc /
+                          / 6: issues /                   6: [
                                / issue-entry / {
                                 / 0: title /         0: "Memory corruption when reading record from SPI flash",
                                 / 1: cvss-score /    1: "7.9",
                                 / 2: cvss-vector /   2: "AV:L/AC:L/PR:L/UI:N/S:C/C:L/I:H/A:L",
                                 / 3: cwe /           3: "CWE-111",
-                                / 4: description /   4: "Due to insufficient input validation in the firmware, a local attacker who tampers with a configuration structure in SPI flash, can cause stack-based memory corruption."
+                                / 4: description /   4: "Due to insufficient input validation in the firmware, a local attacker who tampers with a configuration structure in SPI flash, can cause stack-based memory corruption.",
+                                / 5: cvss-version /  5: "3.1"
                             },
                               / issue-entry / {
                                 / 0: title /         0: "Debug commands enable arbitrary memory read/write",
@@ -89,8 +78,9 @@
                                 / 2: cvss-vector /   2: "AV:L/AC:L/PR:L/UI:N/S:C/C:H/I:H/A:L",
                                 / 3: cwe /           3: "CWE-222",
                                 / 4: description /   4: "The firmware exposes debug command handlers that enable host-side drivers to read and write arbitrary regions of the device's SRAM.",
-                                / 5: cve /           5: "CVE-2014-10000"
-                              }                            
+                                / 5: cvss-version /  5: "3.1",
+                                / 6: cve /           6: "CVE-2014-10000"
+                            }                            
                           ]
                         }                        
                       }
