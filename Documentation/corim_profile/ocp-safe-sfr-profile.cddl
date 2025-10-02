@@ -1,4 +1,4 @@
-; Auditor CoRIM – Corim whch embeds the SFR fields
+; Auditor CoRIM – Corim which embeds the SFR fields
 ; TODO: Register this extension with IANA 
 
 $$measurement-values-map-extension //= (
