@@ -58,10 +58,14 @@
                           / 1: report-version /           1: "1.2",
                           / 2: completion-date /          2: 1(1687651200),
                           / 3: scope-number /             3: 1,
-                          / 4: fw-version /               4: [{
-                            / version / 0: "1.2.3",
-                            / version-scheme / 1: "semver"
-                          }],
+                          / 4: fw-identifiers /           4: [
+                            /fw-identifier / {
+                                / 0: fw-version /  0: {
+                                      / 0: version /         0: "1.2.3",
+                                      / 1: version-scheme /  1: "semver"
+                                }
+                            }
+                          ],
                           / 5: device-category /          5: 0,  / 0: storage, 1: network, 2: gpu, 3: cpu, 4: apu, 5: bmc /
                           / 6: issues /                   6: [
                                / issue-entry / {
