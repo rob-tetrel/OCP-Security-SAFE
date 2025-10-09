@@ -28,6 +28,7 @@ import base64
 import hashlib
 import cbor2
 import cwt
+import logging
 from datetime import datetime
 from typing import Dict, List, Optional, Union, Any
 
@@ -77,13 +78,16 @@ class AzureKeyVaultSigner(cwt.Signer):
     operation, adhering to the required interface of the python-cwt library.
     """
 
-    def __init__(self, vault: str, kid: str):
+    def __init__(self, vault: str, kid: str, debug: bool = False):
         self._signature_value = ""
         super().__init__(
             cose_key=None, protected=None, unprotected={4: kid.encode("utf-8")}
         )
+        if not debug:
+            logger = logging.getLogger("azure")
+            logger.setLevel(logging.ERROR)
 
-        credential = DefaultAzureCredential()
+        credential = DefaultAzureCredential(logging_enable=debug)
         key_client = KeyClient(vault_url=vault, credential=credential)
         key = key_client.get_key(kid)
         self.crypto_client = CryptographyClient(key, credential=credential)
@@ -548,7 +552,7 @@ class ShortFormReport(object):
         )
         return True
 
-    def sign_json_report_azure(self, vault: str, kid: str) -> bool:
+    def sign_json_report_azure(self, vault: str, kid: str, debug: bool = False) -> bool:
         """Sign the JSON object to make a JSON Web Signature. Refer to RFC7515
         for additional details of the JWS specification.
 
@@ -565,7 +569,10 @@ class ShortFormReport(object):
         Returns True on success, and False on failure.
         """
 
-        credential = DefaultAzureCredential()
+        if not debug:
+            logger = logging.getLogger("azure")
+            logger.setLevel(logging.ERROR)
+        credential = DefaultAzureCredential(logging_enable=debug)
         key_client = KeyClient(vault_url=vault, credential=credential)
         key = key_client.get_key(kid)
         crypto_client = CryptographyClient(key, credential=credential)
@@ -672,7 +679,7 @@ class ShortFormReport(object):
             print(f"Error signing CoRIM with cwt: {e}")
             return False
 
-    def sign_corim_report_azure(self, vault: str, kid: str, debug=False) -> bool:
+    def sign_corim_report_azure(self, vault: str, kid: str) -> bool:
         """Sign the CoRIM report using COSE-Sign1 with the cwt library.
 
         Uses the cwt (CBOR Web Token) library for better COSE compatibility.
@@ -697,8 +704,7 @@ class ShortFormReport(object):
             return self._sign_corim_report_internal(signer)
 
         except Exception as e:
-            if debug:
-                print(f"Error signing CoRIM with cwt/azure: {e}")
+            print(f"Error signing CoRIM with cwt/azure: {e}")
             return False
 
     ###########################################################################
@@ -760,7 +766,7 @@ class ShortFormReport(object):
         except Exception as e:
             raise Exception(f"CBOR report contents failed to validate! {e}")
 
-    def get_public_key_azure(self, vault, kid):
+    def get_public_key_azure(self, vault, kid, debug: bool = False):
         """Get the public key of an Azure KeyVault key.
 
         vault:    The Azure Key Vault URL to use.
@@ -768,7 +774,10 @@ class ShortFormReport(object):
 
         Returns the public key in PEM format.
         """
-        credential = DefaultAzureCredential()
+        if not debug:
+            logger = logging.getLogger("azure")
+            logger.setLevel(logging.ERROR)
+        credential = DefaultAzureCredential(logging_enable=debug)
         key_client = KeyClient(vault_url=vault, credential=credential)
         key = key_client.get_key(kid)
         pub = EllipticCurvePublicNumbers(
@@ -781,7 +790,7 @@ class ShortFormReport(object):
         ).decode()
 
     def verify_signed_json_report_azure(
-        self, signed_json_report: bytes, vault: str, kid: str
+        self, signed_json_report: bytes, vault: str, kid: str, debug: bool = False
     ) -> dict:
         """Verify the signed report using an Azure KeyVault key.
 
@@ -793,7 +802,7 @@ class ShortFormReport(object):
         Returns a dictionary containing the decoded JSON short-form report
         payload.
         """
-        pubkey = self.get_public_key_azure(vault, kid)
+        pubkey = self.get_public_key_azure(vault, kid, debug)
         decoded = jwt.decode(signed_json_report, pubkey, algorithms=ALLOWED_JWA_ALGOS)
 
         # verify additional contents of the report
