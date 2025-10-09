@@ -27,7 +27,7 @@ corim_cbor = report.get_report_as_corim_cbor()    # Returns CBOR-encoded bytes
 
 # Sign CoRIM format (experimental)
 report.sign_corim(private_key, "ES512", "key-id")  # COSE-Sign1 signing
-signed_corim = report.get_signed_corim()           # Returns signed COSE
+signed_corim = report.get_signed_corim_report()    # Returns signed COSE
 ```
 
 See `example_dual_format_generation.py` for a complete example of generating both JSON and CoRIM formats from the same data.
@@ -65,7 +65,7 @@ The SRP's public key and [Key ID](#Header-Fields), as well as the signed short-f
 OCP members, such as cloud service providers, will be the primary consumers of these reports. Whenever an OCP member obtains a new firmware image from a vendor, they will pull the corresponding short-form report to decide whether the firmware image is safe to deploy into production.
 
 1. The OCP member will extract the `kid` header field from the report, and use it to lookup the correct SRP public key.
-2. The OCP member will then use the public key to verify the report's signature, using the `verify_signed_report()` API.
+2. The OCP member will then use the public key to verify the report's signature, using the `verify_signed_json_report()` API.
 3. Once the report authenticity is proven, the firmware hash contained in the report (e.g., `fw_hash_sha2_384/512`) can be safely extracted.
 4. This extracted hash can be compared to a locally-calculated hash of the vendor-provided firmware image.
 5. If these hashes match, then the OCP member has now successfully verified that the firmware they wish to deploy has undergone a security audit.
@@ -224,7 +224,7 @@ This list of vulnerabilities that were **not fixed** by the device vendor before
 ## Header Fields
 
 * `alg`: The algorithm used to sign the report. Refer to the [Allowed Algorithms](#Allowed-Algorithms) section for more information.
-* `kid`: The signed JWS object will make use of the [Key ID](https://www.rfc-editor.org/rfc/rfc7515#section-4.1.4) header parameter. This will be used by consumers of the short-form reports to ensure that they select the correct public key when verifying the signed report. The inclusion of this parameter is  an acknowledgement that multiple SRPs will be chosen by the OCP for performing Vendor Security Reviews, and each SRP will use its own unique signing key.
+* `kid`: The signed JWS object will make use of the [Key ID](https://www.rfc-editor.org/rfc/rfc7515#section-4.1.4) header parameter. This will be used by consumers of the short-form reports to ensure that they select the correct public key when verifying the signed report. The inclusion of this parameter is an acknowledgement that multiple SRPs will be chosen by the OCP for performing Vendor Security Reviews, and each SRP will use its own unique signing key.
 
 
 # Allowed Algorithms
@@ -251,3 +251,4 @@ Note above that the RSA-PSS algorithms "PS384" and "PS512" are named after the h
 
 * 3072 bits (384 bytes)
 * 4096 bits (512 bytes)
+
