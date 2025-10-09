@@ -27,6 +27,7 @@ import jwt
 import base64
 import hashlib
 import cbor2
+import cwt
 from datetime import datetime
 from typing import Dict, List, Optional, Union, Any
 
@@ -38,14 +39,6 @@ from cryptography.hazmat.primitives.asymmetric.ec import (
     EllipticCurvePublicNumbers,
     SECP521R1,
 )
-
-try:
-    import cwt
-
-    COSE_AVAILABLE = True
-except ImportError:
-    COSE_AVAILABLE = False
-    # CoRIM signing will not work without cwt, but JSON functionality remains
 
 from azure.identity import DefaultAzureCredential
 from azure.keyvault.keys import KeyClient
@@ -97,7 +90,7 @@ class AzureKeyVaultSigner(cwt.Signer):
 
         if key.key.crv != "P-521":
             print(f"Key must be a P-521 key, but is actually a {key.key.crv}.")
-            return False
+            raise Exception("unsupported algorithm.")
 
     def sign(self, message: bytes) -> bytes:
         """
@@ -283,16 +276,7 @@ class ShortFormReport(object):
             }
 
         # Add digests
-        digests = []
-        if self.report["device"]["fw_hash_sha2_384"]:
-            digests.append(
-                [-43, bytes.fromhex(self.report["device"]["fw_hash_sha2_384"])]
-            )
-        if self.report["device"]["fw_hash_sha2_512"]:
-            digests.append(
-                [-44, bytes.fromhex(self.report["device"]["fw_hash_sha2_512"])]
-            )
-
+        digests = self._get_fw_digests()
         if digests:
             fw_id[1] = digests  # fw-file-digests
 
@@ -650,10 +634,6 @@ class ShortFormReport(object):
 
         Uses the cwt (CBOR Web Token) library for better COSE compatibility.
         """
-        if not COSE_AVAILABLE:
-            print("cwt library not available. Cannot sign CoRIM.")
-            return False
-
         try:
             # Load private key using cryptography
             pem = serialization.load_pem_private_key(
@@ -709,10 +689,6 @@ class ShortFormReport(object):
 
         Returns True on success, and False on failure.
         """
-        if not COSE_AVAILABLE:
-            print("cwt library not available. Cannot sign CoRIM.")
-            return False
-
         try:
             # Create Signer using Azure KeyVault
             signer = AzureKeyVaultSigner(vault=vault, kid=kid)
@@ -741,19 +717,6 @@ class ShortFormReport(object):
         header = jwt.get_unverified_header(signed_json_report)
         kid = header.get("kid", None)
         return kid
-
-    def get_signed_corim_report_kid(self, signed_corim_report: bytes) -> str:
-        """Read the unverified CoRIM CBOR header to extract the Key ID. This will be
-        used to find the appropriate public key for verifying the report
-        signature.
-
-        signed_corim_report: A bytes object containing the signed report as a CoRIM CBOR object.
-
-        Returns None if the 'kid' isn't present, otherwise return the 'kid' string.
-        """
-        header = jwt.get_unverified_header(signed_json_report)
-        kid = header.get("kid", None)
-        return None
 
     def verify_signed_json_report(
         self, signed_json_report: bytes, pub_key: bytes
