@@ -1,22 +1,22 @@
 """
-A simple library for generating the short-form vendor security review report.
+A library for generating Security Review Reports in both JSON and CoRIM formats.
 
 This script is intended to be used by Security Review Providers who are
 participating in the Open Compute Project's Firmware Security Review Framework.
 The script complies with version 0.3 (draft) of the Security Review Framework
-document.
+document and supports the new CoRIM (CBOR) format.
 
 More details about the OCP review framework can be found here:
 *  https://www.opencompute.org/wiki/Security
 
 For example usage of this script, refer to the following:
-  * example_generate.py:
-      Demonstrates how to generate, sign and verify the JSON report.
+  * example_gen_sign_verify.py:
+      Demonstrates how to generate, sign and verify reports in both formats.
   * sample_report.json
       An example JSON report that was created by this script.
 
-Author: Jeremy Boone, NCC Group
-Date  : June 5th, 2023
+Author: Jeremy Boone, NCC Group (original), Extended for CoRIM support
+Date  : June 5th, 2023 (original), January 2025 (CoRIM extension)
 """
 
 import time
@@ -24,6 +24,10 @@ import json
 import jwt
 import base64
 import hashlib
+import cbor2
+from datetime import datetime
+from typing import Dict, List, Optional, Union, Any
+
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPrivateKey
@@ -32,6 +36,14 @@ from cryptography.hazmat.primitives.asymmetric.ec import (
     EllipticCurvePublicNumbers,
     SECP521R1,
 )
+
+try:
+    import cwt
+    from cwt import COSEKey
+    COSE_AVAILABLE = True
+except ImportError:
+    COSE_AVAILABLE = False
+    # CoRIM signing will not work without cwt, but JSON functionality remains
 
 from azure.identity import DefaultAzureCredential
 from azure.keyvault.keys import KeyClient
@@ -56,12 +68,27 @@ ALLOWED_RSA_KEY_SIZES = (
     4096,  # RSA 512
 )
 
+# CoRIM specific constants
+DEVICE_CATEGORIES = {
+    "storage": 0,
+    "network": 1,
+    "gpu": 2,
+    "cpu": 3,
+    "apu": 4,
+    "bmc": 5
+}
+
+# CBOR tags for CoRIM
+CORIM_TAG = 501
+COMID_TAG = 506
+
 
 class ShortFormReport(object):
     def __init__(self, framework_ver: str = "1.1"):
         self.report = {}
         self.report["review_framework_version"] = f"{framework_ver}".strip()
         self.signed_report = None
+        self.signed_corim = None
 
     def add_device(
         self,
@@ -261,6 +288,281 @@ class ShortFormReport(object):
             self.get_report_as_dict(), key=priv_key, algorithm=algo, headers=jws_headers
         )
         return True
+
+    ###########################################################################
+    # CoRIM format methods (new functionality)
+    ###########################################################################
+
+    def _convert_to_corim_structure(self) -> Dict[str, Any]:
+        """Convert internal JSON structure to CoRIM structure."""
+        if "audit" not in self.report or "device" not in self.report:
+            raise ValueError("Report must have both device and audit information")
+
+        # Parse completion date to Unix timestamp with CBOR tag 1
+        date_str = self.report["audit"]["completion_date"]
+        try:
+            dt = datetime.strptime(date_str, "%Y-%m-%d")
+            completion_timestamp = cbor2.CBORTag(1, int(dt.timestamp()))
+        except ValueError:
+            raise ValueError(f"Invalid date format: {date_str}. Expected YYYY-MM-DD")
+
+        # Build fw-identifier structure
+        fw_identifiers = []
+        fw_id = {}
+        
+        # Add version information
+        if self.report["device"]["fw_version"]:
+            fw_id[0] = {  # fw-version
+                0: self.report["device"]["fw_version"],  # version
+                1: "semver"  # version-scheme (default)
+            }
+        
+        # Add digests
+        digests = []
+        if self.report["device"]["fw_hash_sha2_384"]:
+            digests.append([-43, bytes.fromhex(self.report["device"]["fw_hash_sha2_384"])])  # SHA-384
+        if self.report["device"]["fw_hash_sha2_512"]:
+            digests.append([-44, bytes.fromhex(self.report["device"]["fw_hash_sha2_512"])])  # SHA-512
+        
+        if digests:
+            fw_id[1] = digests  # fw-file-digests
+        
+        # Add repo tag
+        if self.report["device"]["repo_tag"]:
+            fw_id[2] = self.report["device"]["repo_tag"]  # repo-tag
+        
+        # Add manifest if present
+        if "manifest" in self.report["device"]:
+            manifest_entries = []
+            for entry in self.report["device"]["manifest"]:
+                manifest_entries.append({
+                    0: entry["file_name"],  # filename
+                    1: [[-44, bytes.fromhex(entry["file_hash"])]]  # file-hash (assuming SHA-512)
+                })
+            
+            # Calculate manifest digest
+            manifest_str = json.dumps(self.report["device"]["manifest"], 
+                                    sort_keys=False, separators=(',', ':')).encode('utf-8')
+            manifest_digest = hashlib.sha512(manifest_str).digest()
+            
+            fw_id[3] = {  # src-manifest
+                0: [[-44, manifest_digest]],  # manifest-digest
+                1: manifest_entries  # manifest
+            }
+        
+        fw_identifiers.append(fw_id)
+
+        # Convert device category to integer
+        category_str = self.report["device"]["category"].lower()
+        device_category = None
+        for cat, val in DEVICE_CATEGORIES.items():
+            if cat in category_str:
+                device_category = val
+                break
+
+        # Convert issues
+        corim_issues = []
+        for issue in self.report["audit"]["issues"]:
+            corim_issue = {
+                0: issue["title"],           # title
+                1: issue["cvss_score"],      # cvss-score
+                2: issue["cvss_vector"],     # cvss-vector
+                3: issue["cwe"],             # cwe
+                4: issue["description"],     # description
+            }
+            
+            # Add optional fields
+            if "cvss_version" in self.report["audit"]:
+                corim_issue[5] = self.report["audit"]["cvss_version"]  # cvss-version
+            
+            if issue.get("cve"):
+                corim_issue[6] = issue["cve"]  # cve
+            
+            corim_issues.append(corim_issue)
+
+        # Build the ocp-safe-sfr-map
+        sfr_map = {
+            0: self.report["review_framework_version"],  # review-framework-version
+            1: self.report["audit"]["report_version"],   # report-version
+            2: completion_timestamp,                     # completion-date
+            3: self.report["audit"]["scope_number"],     # scope-number
+            4: fw_identifiers,                          # fw-identifiers
+        }
+        
+        if device_category is not None:
+            sfr_map[5] = device_category  # device-category
+        
+        if corim_issues:
+            sfr_map[6] = corim_issues  # issues
+
+        return sfr_map
+
+    def _build_corim_structure(self, sfr_map: Dict[str, Any]) -> Dict[str, Any]:
+        """Build the complete CoRIM structure with embedded SFR data."""
+        
+        # Create the measurement-values-map with SFR extension
+        measurement_values = {
+            1029: sfr_map  # ocp-safe-sfr extension
+        }
+        
+        # Create measurement-map for endorsement
+        endorsement_measurement_map = {
+            1: measurement_values  # mval
+        }
+        
+        # Create measurement-map for conditions (with digests)
+        condition_measurement_map = {
+            1: {  # mval
+                2: self._get_fw_digests()  # digests
+            }
+        }
+        
+        # Create endorsed-triple-record
+        endorsed_triple = [
+            # environment-map
+            {
+                0: {  # class
+                    1: self.report["device"]["vendor"],   # vendor
+                    2: self.report["device"]["product"]   # model
+                }
+            },
+            # endorsement (array of measurement-map)
+            [endorsement_measurement_map]
+        ]
+        
+        # Create stateful-environment-record for conditions
+        stateful_environment = [
+            # environment-map
+            {
+                0: {  # class
+                    1: self.report["device"]["vendor"],   # vendor
+                    2: self.report["device"]["product"]   # model
+                }
+            },
+            # claims-list (measurement-map array)
+            [condition_measurement_map]
+        ]
+        
+        # Create conditional-endorsement-triple-record
+        conditional_endorsement = [
+            # conditions (stateful-environment-record array)
+            [stateful_environment],
+            # endorsements (endorsed-triple-record array)
+            [endorsed_triple]
+        ]
+        
+        # Create concise-mid-tag
+        comid = {
+            1: {  # tag-identity
+                0: f"{self.report['device']['vendor'].lower().replace(' ', '-')}-review-comid-001"  # tag-id
+            },
+            4: {  # triples
+                10: [conditional_endorsement]  # conditional-endorsement-triples
+            }
+        }
+        
+        # Create the main CoRIM structure
+        corim = {
+            0: f"sfr-corim-{int(time.time())}",  # id
+            1: [cbor2.CBORTag(COMID_TAG, cbor2.dumps(comid))],  # tags
+            5: [  # entities
+                {
+                    0: self.report["audit"]["srp"],  # entity-name
+                    2: [1]  # role: manifest-creator
+                }
+            ]
+        }
+        
+        return corim
+
+    def _get_fw_digests(self) -> List[List]:
+        """Get firmware digests in CoRIM format."""
+        digests = []
+        if self.report["device"]["fw_hash_sha2_384"]:
+            digests.append([-43, bytes.fromhex(self.report["device"]["fw_hash_sha2_384"])])
+        if self.report["device"]["fw_hash_sha2_512"]:
+            digests.append([-44, bytes.fromhex(self.report["device"]["fw_hash_sha2_512"])])
+        return digests
+
+    def get_report_as_corim_dict(self) -> Dict[str, Any]:
+        """Returns the report as a CoRIM-structured dictionary."""
+        sfr_map = self._convert_to_corim_structure()
+        return self._build_corim_structure(sfr_map)
+
+    def get_report_as_corim_cbor(self) -> bytes:
+        """Returns the report as CBOR-encoded CoRIM bytes."""
+        corim_dict = self.get_report_as_corim_dict()
+        tagged_corim = cbor2.CBORTag(CORIM_TAG, corim_dict)
+        return cbor2.dumps(tagged_corim)
+
+    def get_report_as_corim_diag(self) -> str:
+        """Returns the report as human-readable CBOR diagnostic notation."""
+        corim_cbor = self.get_report_as_corim_cbor()
+        # This is a simplified diagnostic representation
+        # In practice, you might want to use a proper CBOR diagnostic tool
+        return f"CBOR data ({len(corim_cbor)} bytes): {corim_cbor.hex()}"
+
+    def sign_corim(self, priv_key: bytes, algo: str, kid: str) -> bool:
+        """Sign the CoRIM report using COSE-Sign1 with the cwt library.
+        
+        Uses the cwt (CBOR Web Token) library for better COSE compatibility.
+        """
+        if not COSE_AVAILABLE:
+            print("cwt library not available. Cannot sign CoRIM.")
+            return False
+
+        try:
+            # Load private key using cryptography
+            pem = serialization.load_pem_private_key(
+                priv_key, None, backend=default_backend()
+            )
+
+            # Map algorithm to COSE algorithm identifier
+            cose_alg = None
+            if algo == "ES512" and isinstance(pem, EllipticCurvePrivateKey) and pem.curve.name == "secp521r1":
+                cose_alg = -36  # ES512
+            elif algo == "ES384" and isinstance(pem, EllipticCurvePrivateKey) and pem.curve.name == "secp384r1":
+                cose_alg = -35  # ES384
+            elif algo == "PS512" and isinstance(pem, RSAPrivateKey):
+                cose_alg = -38  # PS512
+            elif algo == "PS384" and isinstance(pem, RSAPrivateKey):
+                cose_alg = -37  # PS384
+            else:
+                print(f"Unsupported algorithm/key combination: {algo} with {type(pem)}")
+                return False
+
+            # Create Signer using cwt library
+            signer = cwt.Signer.from_pem(priv_key, alg=cose_alg, kid=kid)
+
+            # Get CoRIM payload as claims (cwt expects claims, not raw payload)
+            corim_cbor = self.get_report_as_corim_cbor()
+            
+            # For COSE signing, we need to create claims structure
+            # The CoRIM data becomes the payload claim
+            claims = {
+                # Use a custom claim number for CoRIM data
+                -65537: corim_cbor  # Custom claim for CoRIM payload
+            }
+
+            # Sign using cwt library with the signer
+            signed_corim = cwt.encode_and_sign(
+                claims=claims,
+                signers=[signer],
+                tagged=True  # Use CBOR tag for COSE_Sign1
+            )
+            
+            self.signed_corim = signed_corim
+            print("CoRIM successfully signed with COSE-Sign1 using cwt library")
+            return True
+
+        except Exception as e:
+            print(f"Error signing CoRIM with cwt: {e}")
+            print("CoRIM generation is working, but signing failed.")
+            return False
+
+    def get_signed_corim(self) -> bytes:
+        """Returns the signed CoRIM report (COSE-Sign1)."""
+        return self.signed_corim
 
     def get_signed_report(self) -> bytes:
         """Returns the signed short form report (a JWS) as a bytes object. May
