@@ -82,6 +82,10 @@ DEVICE_CATEGORIES = {
 CORIM_TAG = 501
 COMID_TAG = 506
 
+# OCP SAFE SFR Profile OID: 1.3.6.1.4.1.42623.1.1
+# DER encoded OID bytes
+OCP_SAFE_SFR_PROFILE_OID = bytes.fromhex('060A2B0601040182F4170101')
+
 
 class ShortFormReport(object):
     def __init__(self, framework_ver: str = "1.1"):
@@ -402,7 +406,7 @@ class ShortFormReport(object):
         
         # Create the measurement-values-map with SFR extension
         measurement_values = {
-            1029: sfr_map  # ocp-safe-sfr extension
+            -1: sfr_map  # ocp-safe-sfr extension
         }
         
         # Create measurement-map for endorsement
@@ -465,6 +469,7 @@ class ShortFormReport(object):
         corim = {
             0: f"sfr-corim-{int(time.time())}",  # id
             1: [cbor2.CBORTag(COMID_TAG, cbor2.dumps(comid))],  # tags
+            3: cbor2.CBORTag(111, OCP_SAFE_SFR_PROFILE_OID),  # profile: OID 1.3.6.1.4.1.42623.1.1
             5: [  # entities
                 {
                     0: self.report["audit"]["srp"],  # entity-name

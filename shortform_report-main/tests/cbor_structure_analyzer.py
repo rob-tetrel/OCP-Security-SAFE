@@ -75,12 +75,26 @@ def analyze_corim_structure():
                 print("✓ CoRIM content is a dictionary")
                 
                 # Check required fields
-                required_fields = {0: "id", 1: "tags", 5: "entities"}
+                required_fields = {0: "id", 1: "tags", 3: "profile", 5: "entities"}
                 for field_num, field_name in required_fields.items():
                     if field_num in corim_content:
                         print(f"✓ Field {field_num} ({field_name}) present")
                     else:
                         print(f"✗ Field {field_num} ({field_name}) missing")
+                
+                # Validate profile field specifically
+                if 3 in corim_content:
+                    profile = corim_content[3]
+                    if isinstance(profile, cbor2.CBORTag) and profile.tag == 111:
+                        print("✓ Profile field properly tagged with OID tag (111)")
+                        profile_oid = profile.value
+                        expected_oid = bytes.fromhex('060A2B0601040182F4170101')  # OID 1.3.6.1.4.1.42623.1.1
+                        if profile_oid == expected_oid:
+                            print("✓ Profile OID matches expected value (1.3.6.1.4.1.42623.1.1)")
+                        else:
+                            print(f"✗ Profile OID mismatch. Expected: {expected_oid.hex()}, Got: {profile_oid.hex()}")
+                    else:
+                        print("✗ Profile field not properly tagged or missing OID tag")
                 
                 # Analyze tags structure
                 if 1 in corim_content:
@@ -141,9 +155,20 @@ def analyze_corim_structure():
                                                                         first_measurement = measurements[0]
                                                                         if isinstance(first_measurement, dict) and 1 in first_measurement:
                                                                             mval = first_measurement[1]
-                                                                            if isinstance(mval, dict) and 1029 in mval:
-                                                                                print("✓ Found SFR extension (1029) in measurement values")
-                                                                                sfr_data = mval[1029]
+                                                                            if isinstance(mval, dict) and -1 in mval:
+                                                                                print("✓ Found SFR extension (-1) in measurement values")
+                                                                                
+                                                                                # Validate SFR data structure
+                                                                                sfr_data = mval[-1]
+                                                                                if isinstance(sfr_data, dict):
+                                                                                    print(f"  - SFR data contains {len(sfr_data)} fields")
+                                                                                    if 0 in sfr_data:
+                                                                                        print(f"  - Framework version: {sfr_data[0]}")
+                                                                                    if 1 in sfr_data:
+                                                                                        print(f"  - Report version: {sfr_data[1]}")
+                                                                                    if 3 in sfr_data:
+                                                                                        print(f"  - Scope number: {sfr_data[3]}")
+                                                                                sfr_data = mval[-1]
                                                                                 
                                                                                 # Check SFR structure
                                                                                 sfr_fields = {
