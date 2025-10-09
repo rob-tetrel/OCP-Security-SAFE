@@ -23,7 +23,7 @@ MY_SIGN_ALGO = "ES512"
 MY_KID = "Wile E Coyote"
 
 MY_VAULT = "https://MYVAULT.vault.azure.net/"
-MY_KID_AZURE = "Wile E Coyote"
+MY_KID_AZURE = "srp-ocp-key"
 MY_PUB_KEY_AZURE = "testkey_ecdsa_p521.pub"
 
 
@@ -155,7 +155,10 @@ def main():
 
     # Sign JSON format (azure)
     print("\nSigning JSON report...")
-    success_j2 = rep.sign_json_report_azure(MY_VAULT, MY_KID_AZURE)
+    try:
+        success_j2 = rep.sign_json_report_azure(MY_VAULT, MY_KID_AZURE)
+    except:
+        success_j2 = False
     if success_j2:
         signed_json2 = rep.get_signed_json_report()
         print(f"JSON JWS signature created ({len(signed_json2)} bytes)")
@@ -172,7 +175,7 @@ def main():
         print("Note: This test requires Azure Key Vault (see README.md)")
 
     # Sign CoRIM format (test key)
-    print("\nSigning CoRIM report...")
+    print("\nSigning CoRIM report (test key)...")
     try:
         success_c1 = rep.sign_corim_report_pem(privkey, MY_SIGN_ALGO, MY_KID)
         if success_c1:
@@ -190,28 +193,26 @@ def main():
             print("Failed to sign CoRIM report")
     except Exception as e:
         print(f"Error signing CoRIM: {e}")
-        print("Note: CoRIM signing requires 'cwt' library. Install with: pip install cwt")
 
     # Sign CoRIM format (azure)
-    print("\nSigning CoRIM report...")
+    print("\nSigning CoRIM report (azure)...")
     try:
         success_c2 = rep.sign_corim_report_azure( MY_VAULT, MY_KID_AZURE )
-        if success_c2:
-            signed_corim2 = rep.get_signed_corim_report()
-            print(
-                f"CoRIM COSE-Sign1 signature created ({len(signed_corim2)} bytes)")
-
-            # Save signed CoRIM
-            filename = "example_report_signed_azurekey.cbor"
-            with open(filename, "wb") as f:
-                f.write(signed_corim2)
-            print(f"Signed CoRIM saved to: {filename}")
-            generated_files.append(filename)
-        else:
-            print("Failed to sign CoRIM report")
     except Exception as e:
         print(f"Error signing CoRIM: {e}")
-        print("Note: CoRIM signing requires 'cwt' library. Install with: pip install cwt")
+    if success_c2:
+        signed_corim2 = rep.get_signed_corim_report()
+        print(
+            f"CoRIM COSE-Sign1 signature created ({len(signed_corim2)} bytes)")
+
+        # Save signed CoRIM
+        filename = "example_report_signed_azurekey.cbor"
+        with open(filename, "wb") as f:
+            f.write(signed_corim2)
+        print(f"Signed CoRIM saved to: {filename}")
+        generated_files.append(filename)
+    else:
+        print("Failed to sign CoRIM report")
         print("Note: This test requires Azure Key Vault (see README.md)")
 
     print("\n=== VERIFICATION DEMONSTRATION ===")
@@ -283,15 +284,31 @@ def main():
             print(f"  {filename}: {size} bytes")
 
     print("\n=== SUMMARY ===")
-    print("✓ JSON format: Backward compatible, uses JWS signing")
-    print("✓ CoRIM format: New CBOR format, uses COSE-Sign1 signing")
-    print("✓ Same API: Existing code works unchanged")
-    print("✓ Dual output: Generate both formats from same data")
+    if success_j1:
+        print("✓ ", end='')
+    else:
+        print("x ", end='')
+    print("JSON format: Backward compatible, uses JWS signing (test key)")
+    if success_j2:
+        print("✓ ", end='')
+    else:
+        print("x ", end='')
+    print("JSON format: Backward compatible, uses JWS signing (azure key)")
+    if success_c1:
+        print("✓ ", end='')
+    else:
+        print("x ", end='')
+    print("CoRIM format: New CBOR format, uses COSE-Sign1 signing (test key)")
+    if success_c2:
+        print("✓ ", end='')
+    else:
+        print("x ", end='')
+    print("CoRIM format: New CBOR format, uses COSE-Sign1 signing (azure key)")
 
     print("\nFiles generated:")
     for filename in generated_files:
         if os.path.exists(filename):
-            print(f"  ✓ {filename}")
+            print(f"  {filename}")
 
 
 if __name__ == "__main__":

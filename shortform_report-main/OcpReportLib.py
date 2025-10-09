@@ -672,7 +672,7 @@ class ShortFormReport(object):
             print(f"Error signing CoRIM with cwt: {e}")
             return False
 
-    def sign_corim_report_azure(self, vault: str, kid: str) -> bool:
+    def sign_corim_report_azure(self, vault: str, kid: str, debug=False) -> bool:
         """Sign the CoRIM report using COSE-Sign1 with the cwt library.
 
         Uses the cwt (CBOR Web Token) library for better COSE compatibility.
@@ -697,7 +697,8 @@ class ShortFormReport(object):
             return self._sign_corim_report_internal(signer)
 
         except Exception as e:
-            print(f"Error signing CoRIM with cwt/azure: {e}")
+            if debug:
+                print(f"Error signing CoRIM with cwt/azure: {e}")
             return False
 
     ###########################################################################
