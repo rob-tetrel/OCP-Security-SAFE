@@ -29,6 +29,7 @@ import hashlib
 import cbor2
 import cwt
 import logging
+import prettyprinter
 from datetime import datetime
 from typing import Dict, List, Optional, Union, Any
 
@@ -71,6 +72,18 @@ DEVICE_CATEGORIES = {"storage": 0, "network": 1, "gpu": 2, "cpu": 3, "apu": 4, "
 CORIM_TAG = 501
 COMID_TAG = 506
 
+
+# Define the custom pretty-print function for CBORTag
+@prettyprinter.register_pretty(cbor2.CBORTag)
+def pretty_cbor_tag(value, ctx):
+    """
+    Pretty-prints a cbor2.CBORTag object using the modern prettyprinter API.
+    """
+    if isinstance(value.value, bytes ):
+        c = cbor2.loads(value.value)
+    else:
+        c = value.value
+    return prettyprinter.pretty_call( ctx, cbor2.CBORTag, (value.tag, c))
 
 class AzureKeyVaultSigner(cwt.Signer):
     """
@@ -247,7 +260,7 @@ class ShortFormReport(object):
         """Return the short-form report as a formatted and indented string."""
         return json.dumps(self.get_report_as_dict(), indent=4)
 
-    def print_report(self) -> None:
+    def print_json_report(self) -> None:
         """Pretty-prints the short-form report"""
         print(self.get_report_as_str())
 
@@ -466,12 +479,15 @@ class ShortFormReport(object):
         tagged_corim = cbor2.CBORTag(CORIM_TAG, corim_dict)
         return cbor2.dumps(tagged_corim)
 
-    def get_report_as_corim_diag(self) -> str:
-        """Returns the report as human-readable CBOR diagnostic notation."""
-        corim_cbor = self.get_report_as_corim_cbor()
-        # This is a simplified diagnostic representation
-        # In practice, you might want to use a proper CBOR diagnostic tool
-        return f"CBOR data ({len(corim_cbor)} bytes): {corim_cbor.hex()}"
+    def get_corim_report_as_str(self) -> str:
+        """return the report as human-readable CBOR diagnostic notation."""
+        c = cbor2.loads(self.get_report_as_corim_cbor())
+        return prettyprinter.pformat(c)
+
+    def print_corim_report(self) -> None:
+        """Pretty-prints the short-form report"""
+        print(self.get_corim_report_as_str())
+
 
     ###########################################################################
     # APIs for signing the report

@@ -97,13 +97,17 @@ def main():
     print("\n=== CoRIM FORMAT OUTPUT ===")
     generated_files = []
     try:
-        corim_dict = rep.get_report_as_corim_dict()
-        print("CoRIM structure (Python dict):")
-        print(json.dumps(corim_dict, indent=2, default=str))
-
         corim_cbor = rep.get_report_as_corim_cbor()
-        print(f"\nCoRIM CBOR bytes ({len(corim_cbor)} bytes):")
+        print(f"CoRIM CBOR bytes ({len(corim_cbor)} bytes):")
         print(corim_cbor.hex())
+
+        print("\nCoRIM structure (Python dict):")
+        txt = rep.get_corim_report_as_str()
+        filename = "example_report_unsigned.cbor.txt"
+        with open(filename, "w") as f:
+            f.write(txt)
+        print(f"\nCoRIM saved to: {filename}")
+        generated_files.append(filename)
 
         # Save CoRIM to file
         filename = "example_report_unsigned.cbor"
