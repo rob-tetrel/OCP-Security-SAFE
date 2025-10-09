@@ -107,7 +107,7 @@ def test_corim_generation():
             
             # Try to sign
             if report.sign_corim(private_pem, "ES512", "test-key-001"):
-                signed_corim = report.get_signed_corim()
+                signed_corim = report.get_signed_corim_report()
                 print(f"Successfully signed CoRIM! Signed length: {len(signed_corim)} bytes")
                 
                 # Save signed CoRIM
