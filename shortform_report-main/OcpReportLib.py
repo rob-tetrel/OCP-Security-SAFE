@@ -33,7 +33,7 @@ import cwt
 import logging
 import prettyprinter
 from datetime import datetime
-from typing import Dict, List, Optional, Union, Any
+from typing import Dict, List, Any
 
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.backends import default_backend
@@ -89,7 +89,7 @@ def pretty_cbor_tag(value, ctx):
         try:
             # attempt to handle a bytes object as a nested CBORTag
             c = cbor2.loads(value.value)
-        except:
+        except Exception:
             c = value.value
     else:
         c = value.value
