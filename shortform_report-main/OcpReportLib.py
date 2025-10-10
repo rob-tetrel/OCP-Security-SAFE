@@ -76,6 +76,7 @@ COMID_TAG = 506
 # DER encoded OID bytes
 OCP_SAFE_SFR_PROFILE_OID = bytes.fromhex('060A2B0601040182F4170101')
 
+
 # Define the custom pretty-print function for CBORTag
 @prettyprinter.register_pretty(cbor2.CBORTag)
 def pretty_cbor_tag(value, ctx):

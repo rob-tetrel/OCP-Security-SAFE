@@ -1,6 +1,8 @@
 / tagged-corim-map / 501({
   / corim.id (0) /
   0: "acme-trap-audit-2025-08-03",
+  / corim.profile (3) /
+  3: 111(h'060A2B0601040182F4170101'), / OID 1.3.6.1.4.1.42623.1.1 for OCP SAFE SFR profile /
   / corim.entities (5) /
   5: [
     / audit-entity / {
@@ -53,7 +55,7 @@
                   [ / endorsement #1/
                     / measurement-map / {
                       / comid.mval / 1 : { / measurement-values-map /
-                        / ocp-safe-sfr / 1029 : {
+                        / ocp-safe-sfr / -1 : {
                           / 0: review-framework-version / 0: "1.1",
                           / 1: report-version /           1: "1.2",
                           / 2: completion-date /          2: 1(1687651200),

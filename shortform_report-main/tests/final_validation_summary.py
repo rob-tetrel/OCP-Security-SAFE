@@ -80,12 +80,28 @@ def validate_corim_compliance():
         print("✓ CoRIM dictionary structure generated successfully")
         
         # Validate top-level structure
-        required_fields = [0, 1, 5]  # id, tags, entities
+        required_fields = [0, 1, 3, 5]  # id, tags, profile, entities
         for field in required_fields:
             if field in corim_dict:
                 print(f"✓ Required CoRIM field {field} present")
             else:
                 print(f"✗ Required CoRIM field {field} missing")
+                return False
+        
+        # Validate profile field specifically
+        if 3 in corim_dict:
+            profile = corim_dict[3]
+            if isinstance(profile, cbor2.CBORTag) and profile.tag == 111:
+                print("✓ Profile field properly tagged with OID tag (111)")
+                profile_oid = profile.value
+                expected_oid = bytes.fromhex('060A2B0601040182F4170101')  # OID 1.3.6.1.4.1.42623.1.1
+                if profile_oid == expected_oid:
+                    print("✓ Profile OID matches expected value (1.3.6.1.4.1.42623.1.1)")
+                else:
+                    print(f"✗ Profile OID mismatch. Expected: {expected_oid.hex()}, Got: {profile_oid.hex()}")
+                    return False
+            else:
+                print("✗ Profile field not properly tagged or missing OID tag")
                 return False
         
         print_section("3. CBOR Encoding")
@@ -179,14 +195,14 @@ def validate_corim_compliance():
                 return False
             
             mval = first_measurement[1]
-            if not (isinstance(mval, dict) and 1029 in mval):
-                print("✗ Missing SFR extension (1029)")
+            if not (isinstance(mval, dict) and -1 in mval):
+                print("✗ Missing SFR extension (-1)")
                 return False
             
-            print("✓ SFR extension (1029) found in measurement values")
+            print("✓ SFR extension (-1) found in measurement values")
             
             # Validate SFR structure
-            sfr_data = mval[1029]
+            sfr_data = mval[-1]
             required_sfr_fields = {
                 0: "review-framework-version",
                 1: "report-version", 
