@@ -76,7 +76,7 @@ COMID_TAG = 506
 
 # OCP SAFE SFR Profile OID: 1.3.6.1.4.1.42623.1.1
 # DER encoded OID bytes
-OCP_SAFE_SFR_PROFILE_OID = bytes.fromhex('060A2B0601040182F4170101')
+OCP_SAFE_SFR_PROFILE_OID = bytes.fromhex("060A2B0601040182F4170101")
 
 
 # Define the custom pretty-print function for CBORTag
@@ -85,7 +85,7 @@ def pretty_cbor_tag(value, ctx):
     """
     Pretty-prints a cbor2.CBORTag object using the modern prettyprinter API.
     """
-    if isinstance(value.value, bytes ):
+    if isinstance(value.value, bytes):
         try:
             # attempt to handle a bytes object as a nested CBORTag
             c = cbor2.loads(value.value)
@@ -93,7 +93,8 @@ def pretty_cbor_tag(value, ctx):
             c = value.value
     else:
         c = value.value
-    return prettyprinter.pretty_call( ctx, cbor2.CBORTag, (value.tag, c))
+    return prettyprinter.pretty_call(ctx, cbor2.CBORTag, (value.tag, c))
+
 
 class AzureKeyVaultSigner(cwt.Signer):
     """
@@ -455,7 +456,9 @@ class ShortFormReport(object):
         corim = {
             0: f"sfr-corim-{int(time.time())}",  # id
             1: [cbor2.CBORTag(COMID_TAG, cbor2.dumps(comid))],  # tags
-            3: cbor2.CBORTag(111, OCP_SAFE_SFR_PROFILE_OID),  # profile: OID 1.3.6.1.4.1.42623.1.1
+            3: cbor2.CBORTag(
+                111, OCP_SAFE_SFR_PROFILE_OID
+            ),  # profile: OID 1.3.6.1.4.1.42623.1.1
             5: [  # entities
                 {
                     0: self.report["audit"]["srp"],  # entity-name
@@ -498,7 +501,6 @@ class ShortFormReport(object):
     def print_corim_report(self) -> None:
         """Pretty-prints the short-form report"""
         print(self.get_corim_report_as_str())
-
 
     ###########################################################################
     # APIs for signing the report
