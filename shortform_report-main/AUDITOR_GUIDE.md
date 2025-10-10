@@ -21,7 +21,7 @@ CBOR is a binary format that is not human-readable in its raw form. While CBOR i
 # Inspect a CoRIM file
 python cbor_human_inspector.py my_security_review.cbor
 
-# Show raw CBOR data in addition to decoded structure
+# Show raw CBOR data in addition to decoded structure (currently only supports unsigned CoRIM)
 python cbor_human_inspector.py my_security_review.cbor --show-raw
 ```
 

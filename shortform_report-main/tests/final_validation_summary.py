@@ -275,7 +275,7 @@ def validate_corim_compliance():
                 encryption_algorithm=serialization.NoEncryption()
             )
             
-            if report.sign_corim(private_pem, "ES512", "test-validation-key"):
+            if report.sign_corim_report_pem(private_pem, "ES512", "test-validation-key"):
                 signed_corim = report.get_signed_corim_report()
                 print(f"✓ CoRIM signing successful ({len(signed_corim)} bytes)")
                 print("✓ COSE-Sign1 format with cwt library")

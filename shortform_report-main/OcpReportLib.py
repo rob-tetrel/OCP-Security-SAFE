@@ -11,9 +11,11 @@ More details about the OCP review framework can be found here:
 
 For example usage of this script, refer to the following:
   * example_gen_sign_verify.py:
+      Demonstrates how to generate, sign and verify reports in legacy JSON format.
+  * example_dual_format_generation.py
       Demonstrates how to generate, sign and verify reports in both formats.
-  * sample_report.json
-      An example JSON report that was created by this script.
+  * samples/*
+      Example reports that were created by this library
 
 Author: Jeremy Boone, NCC Group (original),
         Alex Tzonkov, AMD and Rob Wood, Tetrel Security (Extended for CoRIM support)

@@ -54,7 +54,7 @@ def test_basic_functionality():
         
         # Test JSON generation
         json_dict = rep.get_report_as_dict()
-        json_str = rep.get_report_as_str()
+        json_str = rep.get_json_report_as_str()
         
         assert isinstance(json_dict, dict)
         assert isinstance(json_str, str)
@@ -303,7 +303,7 @@ def test_backward_compatibility():
         
         # Original methods should work
         json_dict = rep.get_report_as_dict()
-        json_str = rep.get_report_as_str()
+        json_str = rep.get_json_report_as_str()
         
         assert isinstance(json_dict, dict)
         assert isinstance(json_str, str)
