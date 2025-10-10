@@ -84,7 +84,11 @@ def pretty_cbor_tag(value, ctx):
     Pretty-prints a cbor2.CBORTag object using the modern prettyprinter API.
     """
     if isinstance(value.value, bytes ):
-        c = cbor2.loads(value.value)
+        try:
+            # attempt to handle a bytes object as a nested CBORTag
+            c = cbor2.loads(value.value)
+        except:
+            c = value.value
     else:
         c = value.value
     return prettyprinter.pretty_call( ctx, cbor2.CBORTag, (value.tag, c))
@@ -384,7 +388,7 @@ class ShortFormReport(object):
 
         # Create the measurement-values-map with SFR extension
         measurement_values = {
-            1029: sfr_map  # ocp-safe-sfr extension
+            -1: sfr_map  # ocp-safe-sfr extension
         }
 
         # Create measurement-map for endorsement
