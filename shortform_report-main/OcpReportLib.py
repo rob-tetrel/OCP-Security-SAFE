@@ -510,7 +510,7 @@ class ShortFormReport(object):
         """Returns the signed short form report (a JWS) as a bytes object. May
         return a 'None' object if the report hasn't been signed yet.
         """
-        return self.signed_json_report
+        return self.signed_json_report.encode('utf-8')
 
     def sign_json_report_pem(self, priv_key: bytes, algo: str, kid: str) -> bool:
         """Sign the JSON object to make a JSON Web Signature. Refer to RFC7515
@@ -556,9 +556,9 @@ class ShortFormReport(object):
         if algo in ALLOWED_JWA_RSA_ALGOS:
             if pem.key_size not in ALLOWED_RSA_KEY_SIZES:
                 print(
-                    f"RSA key is too small: {pem.key_size}, must be one of: {
+                    f"""RSA key is too small: {pem.key_size}, must be one of: {
                         ALLOWED_RSA_KEY_SIZES
-                    }"
+                    }"""
                 )
                 return False
 
@@ -628,9 +628,9 @@ class ShortFormReport(object):
         token_components["signature"] = (
             base64.urlsafe_b64encode(result.signature).decode().rstrip("=")
         )
-        self.signed_json_report = f"{token_components.get('header')}.{
-            token_components.get('payload')
-        }.{token_components['signature']}"
+        self.signed_json_report = f"""{token_components.get("header")}.{
+            token_components.get("payload")
+        }.{token_components["signature"]}"""
 
         return True
 
@@ -871,9 +871,9 @@ class ShortFormReport(object):
         ):
             l3 = len(decoded["device"]["fw_hash_sha2_384"])
             print(
-                f"fw_hash_sha2_384 hash digest length must be {
+                f"""fw_hash_sha2_384 hash digest length must be {
                     hashlib.sha384().digest_size * 2
-                } (found {l3})!"
+                } (found {l3})!"""
             )
             return False
         if (
@@ -884,9 +884,9 @@ class ShortFormReport(object):
         ):
             l5 = len(decoded["device"]["fw_hash_sha2_512"])
             print(
-                f"fw_hash_sha2_512 hash digest length must be {
+                f"""fw_hash_sha2_512 hash digest length must be {
                     hashlib.sha512().digest_size * 2
-                } (found {l5})!"
+                } (found {l5})!"""
             )
             return False
 
